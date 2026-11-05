@@ -72,6 +72,10 @@ function M.create_commands()
   vim.api.nvim_create_user_command("HHauto", function(a)
     auto.toggle(a.bang and "weak" or "strong")
   end, { bang = true, desc = "Toggle live auto-highlight (! = weak)" })
+
+  vim.api.nvim_create_user_command("HHcolors", function()
+    colors.preview()
+  end, { desc = "Preview the highlight palette" })
 end
 
 function M.create_autocmds()
@@ -98,12 +102,25 @@ function M.create_autocmds()
       end
     end,
   })
+
+  -- Colorschemes often clear user highlight groups; reapply the palette after
+  -- a colorscheme change or a dark/light background switch.
+  vim.api.nvim_create_autocmd({ "ColorScheme", "OptionSet" }, {
+    group = grp,
+    pattern = "*",
+    callback = function(ev)
+      if ev.event == "OptionSet" and ev.match ~= "background" then
+        return
+      end
+      colors.apply(M.opts.colors)
+    end,
+  })
 end
 
 ---@param user_opts table|nil
 function M.setup(user_opts)
   M.opts = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), user_opts or {})
-  colors.apply()
+  colors.apply(M.opts.colors)
   if M.opts.set_default_keymaps then
     M.set_keymaps()
   end
