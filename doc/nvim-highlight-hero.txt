@@ -1,143 +1,153 @@
-*nvim-highlight-hero.txt*       For Nvim version 0.5 and above.
+*nvim-highlight-hero.txt*   Highlight words, selections and lines in colours
 
 ==============================================================================
-CONTENTS                                                       *highlight-hero*
+CONTENTS                                                   *nvim-highlight-hero*
 
-1. Introduction ......................................... |highlight-hero-intro|
-2. Setup and Configuration .............................. |highlight-hero-setup|
-3. Default Keymaps .......................................|highlight-hero-maps|
-4. Usage ................................................ |highlight-hero-usage|
-5. Commands ..............................................|highlight-hero-commands|
-6. Highlight Groups ......................................|highlight-hero-groups|
-7. Customization .........................................|highlight-hero-customization|
-8. Changelog .............................................|highlight-hero-changelog|
-
-==============================================================================
-1. Introduction                                      *highlight-hero-intro*
-
-Nvim Highlight Hero is a Neovim plugin to interactively highlight words, phrases,
-and multiline selections in your buffer. It allows multiple highlight "groups"
-that can be toggled on and off easily, as well as an auto-highlight mode that
-highlights the word under the cursor as you move.
+    1. Introduction ......................... |highlight-hero-intro|
+    2. Requirements ......................... |highlight-hero-requirements|
+    3. Setup ................................ |highlight-hero-setup|
+    4. Commands ............................. |highlight-hero-commands|
+    5. Keymaps .............................. |highlight-hero-keymaps|
+    6. Matching ............................. |highlight-hero-matching|
+    7. Merge conflicts ...................... |highlight-hero-merge|
+    8. Colours .............................. |highlight-hero-colours|
+    9. Configuration ........................ |highlight-hero-config|
+   10. API .................................. |highlight-hero-api|
 
 ==============================================================================
-2. Setup and Configuration                           *highlight-hero-setup*
+1. INTRODUCTION                                        *highlight-hero-intro*
 
-To install with your favorite plugin manager (e.g. packer):
-
-```lua
-use {
-  'yourusername/nvim-highlight-hero',
-  config = function()
-    require('nvim-highlight-hero').setup()
-  end
-}
-```
+nvim-highlight-hero highlights multiple words, selections and whole lines in
+distinct colours, either on demand into numbered groups or live as the cursor
+moves. It is useful for spotting typos, following a variable's uses, and
+resolving merge conflicts by matching lines while ignoring indentation
+(|highlight-hero-merge|).
 
 ==============================================================================
-3. Default Keymaps                                     *highlight-hero-maps*
+2. REQUIREMENTS                                 *highlight-hero-requirements*
 
-The default key mappings include:
-
-- **Normal Mode:**
-  - `<num>m`: Highlight the current word with boundaries (e.g., `1m` highlights with group 1).
-  - `<num>M`: Append the highlight for the current word (e.g., `1M` appends to group 1).
-  - Repeating `<num>m` (e.g., `1m1m`) toggles the highlight for that group off.
-
-- **Visual Mode:**
-  - `<num>m`: Highlight the visual selection.
-  - `<num>M`: Append highlight for the visual selection.
+Neovim >= 0.10 (uses `vim.fn.getregion`).
 
 ==============================================================================
-4. Usage                                              *highlight-hero-usage*
+3. SETUP                                               *highlight-hero-setup*
 
-### Auto-Highlight Mode
-Use the key mapping `<leader>hh` to toggle auto-highlight mode. When enabled, the plugin highlights the word under the cursor as you move.
-
-### Highlight Groups
-- Highlight with a specific group (1-9):
-  ```
-  :HH 2
-  ```
-- Remove highlights from a group:
-  ```
-  :HH 2 off
-  ```
+Call setup() once. It installs the keymaps, the commands and the highlight
+groups. >lua
+    require("nvim-highlight-hero").setup()
+<
+See |highlight-hero-config| for options.
 
 ==============================================================================
-5. Commands                                           *highlight-hero-commands*
+4. COMMANDS                                         *highlight-hero-commands*
 
-### `:HH`
-User command for managing highlights.
+                                                                         *:HH*
+:HH [N] [text]      Highlight the word under the cursor, the visual selection
+                    (with a range, e.g. `:'<,'>HH`), or the literal [text],
+                    into group [N] (0-9, default 0). Repeating the same target
+                    toggles that group off. Strong matching: whole word,
+                    smartcase.
 
-#### Examples:
+                                                                        *:HH!*
+:HH! [N] [text]     As |:HH| but weak matching: substring, case-insensitive.
 
-1. **Toggle Auto-Highlight:**
-   ```
-   :HH
-   ```
+                                                                      *:HHoff*
+:HHoff [N]          Clear group [N]. With no argument, clears the group you
+                    set most recently.
 
-2. **Turn Off All Highlights:**
-   ```
-   :HH off
-   ```
+                                                                     *:HHoff!*
+:HHoff!             Clear every group.
 
-3. **Turn On Auto-Highlight:**
-   ```
-   :HH on
-   ```
+                                                                     *:HHauto*
+:HHauto             Toggle live auto-highlight: continuously highlight the
+                    word under the cursor or the current selection, updating
+                    as you move. `:HHauto!` uses weak matching.
 
-4. **Manage Group Highlights:**
-   - Highlight with group 2:
-     ```
-     :HH 2
-     ```
-   - Remove group 2 highlights:
-     ```
-     :HH 2 off
-     ```
+                                                                   *:HHcolors*
+:HHcolors           Open a preview of the palette for the current background.
 
 ==============================================================================
-6. Highlight Groups                                   *highlight-hero-groups*
+5. KEYMAPS                                           *highlight-hero-keymaps*
 
-Define or override the highlight groups to use custom colors.
+Default maps (all configurable, see |highlight-hero-config|):
 
-#### Default Groups
-```vim
-highlight default link NvimHighlightHeroAuto Search
-highlight default link NvimHighlightHeroMatch1 DiffText
-highlight default link NvimHighlightHeroMatch2 Substitute
-highlight default link NvimHighlightHeroMatch3 SpellBad
-highlight default link NvimHighlightHeroMatch4 FoldColumn
-highlight default link NvimHighlightHeroMatch5 Folded
-highlight default link NvimHighlightHeroMatch6 TermCursor
-highlight default link NvimHighlightHeroMatch7 DiffDelete
-highlight default link NvimHighlightHeroMatch8 WildMenu
-highlight default link NvimHighlightHeroMatch9 IncSearch
-```
+    <leader>h0 .. <leader>h9   Toggle the word (normal mode) or selection
+                               (visual mode) in group 0-9.
+    <leader>hh                 Toggle live auto-highlight (strong).
+    <leader>hH                 Toggle live auto-highlight (weak).
+    <leader>ho                 Clear the last group you set.
+    <leader>hO                 Clear all groups.
 
 ==============================================================================
-7. Customization                                     *highlight-hero-customization*
+6. MATCHING                                         *highlight-hero-matching*
 
-### Key Mappings
-You can configure key mappings to suit your workflow. Use the `keymaps` table to define mappings.
+Two presets combine three choices (word-boundaries, case, whitespace):
 
-#### Example
-```lua
-require('nvim-highlight-hero').setup({
-  keymaps = {
-    toggle_auto_highlight = '<leader>hh',
-    normal_match_1 = '1m',
-    visual_match_1 = '1m',
-  },
-})
-```
+    strong (|:HH|, digit maps)   whole word, smartcase.
+    weak   (|:HH!|)              substring, case-insensitive.
+
+For a visual selection, word boundaries never apply. A linewise or multi-line
+selection uses "merge" whitespace matching: leading indentation and trailing
+whitespace are ignored and each line is anchored, so the selection matches the
+same lines at any indentation. A single-line characterwise selection matches
+literally.
 
 ==============================================================================
-8. Changelog                                         *highlight-hero-changelog*
+7. MERGE CONFLICTS                                     *highlight-hero-merge*
 
-See the GitHub repository for the latest changes and version history.
+To see which conflict lines differ only by indentation:
+
+1. Turn on auto-highlight: <leader>hh
+2. Linewise-select one line with `V`.
+
+Every indentation-variant of that line lights up. A line whose highlight does
+not appear on another branch is one that actually changed. Narrow down a
+partial change by selecting characterwise and watching where the highlight
+stops.
 
 ==============================================================================
+8. COLOURS                                             *highlight-hero-colours*
 
+Groups 0-9 use `NvimHighlightHero0`..`NvimHighlightHero9`; the live
+auto-highlight uses `NvimHighlightHeroAuto`.
 
+The default palette is built on the Okabe-Ito colour-blind-safe set and used
+as background colours. Each foreground is chosen for a contrast ratio of at
+least 4.5:1, a 256-colour fallback is computed, and a light-background variant
+deepens the hues. The palette is tested to stay distinguishable under
+simulated deuteranopia and protanopia.
+
+Override colours per group with the `colors` option
+(|highlight-hero-config|), or define the highlight groups yourself (they are
+set as defaults, so your definitions win).
+
+==============================================================================
+9. CONFIGURATION                                       *highlight-hero-config*
+
+Defaults: >lua
+    require("nvim-highlight-hero").setup({
+      prefix = "<leader>h",            -- digit maps: prefix .. 0..9
+      keymaps = {
+        toggle_auto = "<leader>hh",
+        toggle_auto_weak = "<leader>hH",
+        off_last = "<leader>ho",
+        off_all = "<leader>hO",
+      },
+      set_default_keymaps = true,      -- false to map everything yourself
+      -- colors = { [0] = "#E69F00", auto = "#50566B" },
+    })
+<
+==============================================================================
+10. API                                                  *highlight-hero-api*
+
+>lua
+    local hh = require("nvim-highlight-hero")
+    hh.highlight(n, "strong"|"weak", { source = "word"|"selection",
+                                       text = "...", append = true })
+    hh.off(n)          -- clear group n
+    hh.off_last()      -- clear the last group set
+    hh.off_all()       -- clear all groups
+    hh.auto_toggle("strong"|"weak")
+    hh.auto_enable("strong"|"weak")
+    hh.auto_disable()
+<
+ vim:tw=78:ts=8:noet:ft=help:norl:
