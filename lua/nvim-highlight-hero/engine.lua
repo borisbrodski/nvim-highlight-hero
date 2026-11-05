@@ -1,192 +1,139 @@
+--- The engine ties the pure pattern builder, the selection reader and the
+--- per-window highlight store together into the operations the commands and
+--- keymaps call. No global match state lives here (it is per-window, in
+--- highlight.lua).
+
+local pattern = require("nvim-highlight-hero.pattern")
+local selection = require("nvim-highlight-hero.selection")
+local highlight = require("nvim-highlight-hero.highlight")
+local colors = require("nvim-highlight-hero.colors")
+
 local M = {}
 
-M.autohighlight_on = false
-M.last_pattern = {} -- Store last pattern used per group number (-1 to 9)
+--- Build the \V pattern for a given context.
+---@param source "word"|"selection"
+---@param preset table  pattern preset (boundaries/case)
+---@param text_override string|nil  literal text supplied on the command line
+---@return string|nil
+local function build_for(source, preset, text_override)
+  if text_override and text_override ~= "" then
+    return pattern.build(text_override, {
+      boundaries = preset.boundaries,
+      case = preset.case,
+      whitespace = "exact",
+    })
+  end
 
-local function get_visual_selection()
-	local s_start = vim.fn.getpos("v")
-	local s_end = vim.fn.getpos(".")
+  if source == "selection" then
+    local sel = selection.visual()
+    if not sel then
+      return nil
+    end
+    -- A selection matches literally; word boundaries never apply. Whitespace is
+    -- "auto" so linewise / multi-line selections use merge matching.
+    return pattern.build(sel.text, {
+      boundaries = false,
+      case = preset.case,
+      whitespace = "auto",
+      linewise = sel.linewise,
+    })
+  end
 
-	-- Sort start/end positions so that s_start is always before s_end
-	if s_start[2] > s_end[2] or (s_start[2] == s_end[2] and s_start[3] > s_end[3]) then
-		s_start, s_end = s_end, s_start
-	end
-
-	local start_line, start_col = s_start[2], s_start[3]
-	local end_line, end_col = s_end[2], s_end[3]
-
-	local mode = vim.fn.mode()
-	if mode == "V" then
-		-- Linewise selection: take all lines fully
-		local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
-		return table.concat(lines, "\n")
-	else
-		-- Characterwise selection (original logic)
-		local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
-		local n_lines = #lines
-
-		if n_lines == 0 then
-			return ""
-		end
-
-		-- Adjust for characterwise selection
-		lines[1] = string.sub(lines[1], start_col, #lines[1])
-		if n_lines == 1 then
-			lines[n_lines] = string.sub(lines[n_lines], 1, end_col - start_col + 1)
-		else
-			lines[n_lines] = string.sub(lines[n_lines], 1, end_col)
-		end
-
-		return table.concat(lines, "\n")
-	end
+  local word = selection.word_under_cursor()
+  if word == "" then
+    return nil
+  end
+  return pattern.build(word, {
+    boundaries = preset.boundaries,
+    case = preset.case,
+    whitespace = "exact",
+  })
 end
 
-function M.autohighlight()
-	-- print("Current state " .. vim.inspect(M.autohighlight_on))
-	if M.autohighlight_on then
-		M.match_off(-1)
-	end
-	M.autohighlight_on = not M.autohighlight_on
-	if M.autohighlight_on then
-		M.do_autohighlight()
-	end
+--- Highlight into a numbered group.
+---@param group integer  0-9
+---@param preset_name "strong"|"weak"
+---@param opts { source?: "word"|"selection", text?: string, append?: boolean }|nil
+function M.highlight(group, preset_name, opts)
+  opts = opts or {}
+  local preset = pattern.presets[preset_name] or pattern.presets.strong
+
+  local source = opts.source
+  if not source then
+    local m = vim.fn.mode()
+    source = (m == "v" or m == "V" or m == "\22") and "selection" or "word"
+  end
+
+  local pat = build_for(source, preset, opts.text)
+  if not pat then
+    return
+  end
+
+  local hl = colors.name(group)
+  if opts.append then
+    highlight.add(group, hl, pat)
+  else
+    highlight.toggle(group, hl, pat)
+  end
 end
 
-M.i = 1
-function M.do_autohighlight()
-	if M.autohighlight_on then
-		M.match(-1, false, true)
-	end
+--- Clear one group in the current window.
+---@param group integer
+function M.off(group)
+  highlight.clear(group)
 end
 
--- Return the name of the get_highlight group for the 'num'
----@param num number 0-9 for fixed group, -1 for autohighlight
----@return string name of the group
-local function get_highlight_group(num)
-	if num >= 0 and num <= 9 then
-		return string.format("NvimHighlightHeroMatch%d", num)
-	end
-	return "NvimHighlightHeroAuto"
+--- Clear every group in the current window.
+function M.off_all()
+  highlight.clear_all()
 end
 
--- Init current buffer if not initialized already
-local function init_buffer()
-	if not vim.w.nvim_highlight_hero then
-		local init_state = {
-			matches = {},
-		}
-		init_state.matches[1] = {} -- Autohighlighting
-		for buf_num = 0, 9 do -- Highlight groups
-			init_state.matches[buf_num + 2] = {}
-		end
-		vim.w.nvim_highlight_hero = init_state
-	end
-	return vim.w.nvim_highlight_hero
+--- Clear the most recently set group in the current window.
+function M.off_last()
+  local g = highlight.last_group()
+  if g ~= nil then
+    highlight.clear(g)
+  end
 end
 
--- Remove match
----@param buf_num number 0-9 for fixed group, -1 for autohighlight
-function M.match_off(buf_num)
-	init_buffer()
-	local buffer_config = vim.w.nvim_highlight_hero
-	-- print("Match off " .. buf_num)
-	if buffer_config.matches[buf_num + 2] then
-		for _, v in ipairs(buffer_config.matches[buf_num + 2]) do
-			-- print("- Removing " .. v)
-			vim.fn.matchdelete(v)
-		end
-	end
-	buffer_config.matches[buf_num + 2] = {}
-	vim.w.nvim_highlight_hero = buffer_config
+-- Parse a leading "[0-9]" group token off an argument string.
+---@return integer group, string|nil text
+local function parse_group_and_text(args)
+  args = vim.trim(args or "")
+  if args == "" then
+    return 0, nil
+  end
+  local first, rest = args:match("^(%S+)%s*(.*)$")
+  if first:match("^%d$") then
+    return tonumber(first), (rest ~= "" and rest or nil)
+  end
+  return 0, args
 end
 
--- Install new match for num and pattern
----comment
----@param buf_num any 0-9 for fixed group, -1 for autohighlight
----@param pattern string regex-pattern to highlight
----@param append boolean append to highlight, if true
-local function match_install(buf_num, pattern, append)
-	init_buffer()
-	if not append then
-		M.match_off(buf_num)
-	end
-	local id = vim.fn.matchadd(get_highlight_group(buf_num), pattern)
-	local buffer_config = vim.w.nvim_highlight_hero
-	local id_list = buffer_config.matches[buf_num + 2]
-	table.insert(id_list, id)
-	buffer_config.matches[buf_num + 2] = id_list
-	vim.w.nvim_highlight_hero = buffer_config
+--- `:HH[!] [N] [text]` - highlight into group N (default 0). `!` = weak preset.
+--- With a range (visual `:'<,'>HH`) the selection is highlighted; otherwise the
+--- word under the cursor (or the literal [text]).
+---@param a { bang: boolean, args: string, range: integer }
+function M.cmd_hh(a)
+  local preset = a.bang and "weak" or "strong"
+  local group, text = parse_group_and_text(a.args)
+  local source = (a.range and a.range > 0) and "selection" or "word"
+  M.highlight(group, preset, { source = source, text = text })
 end
 
----Escape text for usage with \V... regex
---- - Convert all backslashes to `\\`
---- - Split into lines, trim leading and trailing whitespace
---- - Rejoin lines with actual newlines, then convert `\n` to `\\n`
----@param text string to be escaped
----@return string escaped string
-local function escape_for_V_regex(text)
-	text = text:gsub("\\", "\\\\")
-
-	local lines = {}
-	local text_lines = {}
-
-	for line in text:gmatch("[^\n]+") do
-		table.insert(text_lines, line)
-	end
-
-	if #text_lines < 2 then
-		return text
-	end
-
-	for _, line in ipairs(text_lines) do
-		line = line:gsub("^%s+", ""):gsub("%s+$", "")
-		table.insert(lines, "\\s\\*" .. line .. "\\s\\*")
-	end
-
-	return table.concat(lines, "\\n")
-end
-
-function M.match(num, append, keep_visual)
-	local mode = vim.api.nvim_get_mode().mode
-	local text
-	if mode == "n" then
-		text = vim.fn.expand("<cword>")
-		if text == "" then
-			-- print("No word under cursor to highlight.")
-			return
-		end
-		text = "\\<" .. escape_for_V_regex(text) .. "\\>"
-	elseif mode == "v" or mode == "V" then
-		local selection = get_visual_selection()
-		if selection == "" then
-			-- print("No visual selection.")
-			return
-		end
-		text = escape_for_V_regex(selection)
-		if not keep_visual then
-			vim.api.nvim_input("<esc>")
-		end
-	else
-		return
-	end
-
-	local pattern = "\\V" .. text
-
-	-- Check if we're toggling the same pattern for this group (and not appending)
-	-- If it's the same pattern and append is false, we turn the group off instead
-	if not append and M.last_pattern[num] == pattern then
-		M.match_off(num)
-		M.last_pattern[num] = nil
-		return
-	end
-
-	match_install(num, pattern, append)
-	M.last_pattern[num] = pattern
-end
-
-function M.is_highlight_set(num)
-	local buffer_config = init_buffer()
-	return #buffer_config.matches[num + 2] > 0
+--- `:HHoff [N]` clears group N (or the last set group); `:HHoff!` clears all.
+---@param a { bang: boolean, args: string }
+function M.cmd_hhoff(a)
+  if a.bang then
+    M.off_all()
+    return
+  end
+  local args = vim.trim(a.args or "")
+  if args:match("^%d$") then
+    M.off(tonumber(args))
+  else
+    M.off_last()
+  end
 end
 
 return M
