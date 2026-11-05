@@ -5,9 +5,18 @@
 
 local M = {}
 
---- The keyword under the cursor, or "" when there is none.
+--- The keyword under the cursor, or "" when the cursor is not on one.
+---
+--- `expand("<cword>")` returns the keyword under *or after* the cursor, so on
+--- indentation or punctuation it grabs the next word on the line. Guard that by
+--- requiring the character under the cursor to be a keyword character.
 ---@return string
 function M.word_under_cursor()
+  local line = vim.api.nvim_get_current_line()
+  local col = vim.fn.col(".") -- 1-based byte column of the cursor
+  if vim.fn.matchstr(line, "\\%" .. col .. "c\\k") == "" then
+    return ""
+  end
   return vim.fn.expand("<cword>")
 end
 
