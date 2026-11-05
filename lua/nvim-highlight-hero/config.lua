@@ -4,6 +4,7 @@
 local engine = require("nvim-highlight-hero.engine")
 local colors = require("nvim-highlight-hero.colors")
 local highlight = require("nvim-highlight-hero.highlight")
+local auto = require("nvim-highlight-hero.auto")
 
 local M = {}
 
@@ -11,10 +12,12 @@ M.defaults = {
   -- Digit maps are built as `prefix .. 0..9`, e.g. <leader>h3.
   prefix = "<leader>h",
   keymaps = {
+    toggle_auto = "<leader>hh",
+    toggle_auto_weak = "<leader>hH",
     off_last = "<leader>ho",
     off_all = "<leader>hO",
   },
-  -- Set the default keymaps (digits + off). Turn off to map everything yourself.
+  -- Set the default keymaps (digits + auto + off). Turn off to map it yourself.
   set_default_keymaps = true,
 }
 
@@ -35,6 +38,16 @@ function M.set_keymaps()
   end
 
   local km = M.opts.keymaps or {}
+  if km.toggle_auto then
+    vim.keymap.set({ "n", "x" }, km.toggle_auto, function()
+      auto.toggle("strong")
+    end, { silent = true, desc = "Toggle auto-highlight" })
+  end
+  if km.toggle_auto_weak then
+    vim.keymap.set({ "n", "x" }, km.toggle_auto_weak, function()
+      auto.toggle("weak")
+    end, { silent = true, desc = "Toggle auto-highlight (weak)" })
+  end
   if km.off_last then
     vim.keymap.set("n", km.off_last, function()
       engine.off_last()
@@ -55,10 +68,25 @@ function M.create_commands()
   vim.api.nvim_create_user_command("HHoff", function(a)
     engine.cmd_hhoff({ bang = a.bang, args = a.args })
   end, { bang = true, nargs = "?", desc = "Clear a highlight group (! = all)" })
+
+  vim.api.nvim_create_user_command("HHauto", function(a)
+    auto.toggle(a.bang and "weak" or "strong")
+  end, { bang = true, desc = "Toggle live auto-highlight (! = weak)" })
 end
 
 function M.create_autocmds()
   local grp = vim.api.nvim_create_augroup("NvimHighlightHero", { clear = true })
+
+  -- Live auto-highlight: recompute on cursor movement and mode changes. The
+  -- callback is a cheap no-op while auto-highlight is disabled.
+  vim.api.nvim_create_autocmd({ "CursorMoved", "ModeChanged" }, {
+    group = grp,
+    pattern = "*",
+    callback = function()
+      auto.update()
+    end,
+  })
+
   vim.api.nvim_create_autocmd("WinClosed", {
     group = grp,
     pattern = "*",
@@ -66,6 +94,7 @@ function M.create_autocmds()
       local win = tonumber(ev.match)
       if win then
         highlight.forget_window(win)
+        auto.forget_window(win)
       end
     end,
   })
