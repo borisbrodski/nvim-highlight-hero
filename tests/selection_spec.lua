@@ -21,6 +21,24 @@ describe("word_under_cursor", function()
     vim.fn.cursor(1, 2)
     assert.equals("", sel.word_under_cursor())
   end)
+
+  it("returns empty on indentation before a word (does not grab the next word)", function()
+    set_buf({ "    os.contains" })
+    vim.fn.cursor(1, 2) -- a leading space; 'os' is further right
+    assert.equals("", sel.word_under_cursor())
+  end)
+
+  it("returns empty on punctuation between words", function()
+    set_buf({ "os.contains" })
+    vim.fn.cursor(1, 3) -- the '.'
+    assert.equals("", sel.word_under_cursor())
+  end)
+
+  it("returns the word when the cursor is actually on it", function()
+    set_buf({ "    os.contains" })
+    vim.fn.cursor(1, 5) -- 'o' of 'os'
+    assert.equals("os", sel.word_under_cursor())
+  end)
 end)
 
 describe("visual characterwise", function()

@@ -75,6 +75,14 @@ describe("auto-highlight", function()
     auto.update()
     assert.is_nil(auto_pattern())
   end)
+
+  it("does not highlight the next word when the cursor is on indentation", function()
+    set_buf({ "    os.contains", "    os.foo" })
+    auto.enable("strong")
+    vim.fn.cursor(1, 2) -- a leading space; the cursor is not on 'os'
+    auto.update()
+    assert.is_nil(auto_pattern())
+  end)
 end)
 
 -- The headline merge workflow: with auto on, visually selecting lines lights
