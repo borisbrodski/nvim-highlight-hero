@@ -3,11 +3,7 @@ PLENARY_DIR ?= .tests/plenary.nvim
 
 # Files that already conform to stylua/luacheck. Widened as modules are
 # rewritten during the redesign.
-LINT_FILES = \
-	lua/nvim-highlight-hero/pattern.lua \
-	lua/nvim-highlight-hero/selection.lua \
-	lua/nvim-highlight-hero/highlight.lua \
-	tests scripts
+LINT_FILES = lua tests scripts
 
 .PHONY: test lint format format-check deps clean
 

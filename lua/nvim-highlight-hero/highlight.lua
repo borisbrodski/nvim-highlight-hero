@@ -9,6 +9,8 @@ M.priority = 10
 
 -- state[winid][group] = { ids = { match_id, ... }, pattern = string|nil }
 local state = {}
+-- last[winid] = the most recently set/toggled-on group (for :HHoff / <leader>ho)
+local last = {}
 
 local function win_state(win)
   win = (win and win ~= 0) and win or vim.api.nvim_get_current_win()
@@ -28,6 +30,9 @@ function M.clear(group, win)
     end
   end
   ws[group] = nil
+  if last[w] == group then
+    last[w] = nil
+  end
 end
 
 --- Remove every group's matches in the window.
@@ -60,6 +65,7 @@ function M.set(group, hl_group, pattern, win)
   M.clear(group, w)
   local id = M.add(group, hl_group, pattern, w)
   win_state(w)[group].pattern = pattern
+  last[w] = group
   return id
 end
 
@@ -97,11 +103,20 @@ function M.active_groups(win)
   return out
 end
 
+--- The most recently set/toggled-on group in the window, or nil.
+---@param win integer|nil
+---@return (integer|string)|nil
+function M.last_group(win)
+  local _, w = win_state(win)
+  return last[w]
+end
+
 --- Drop stored state for a window (e.g. on WinClosed). Matches themselves die
 --- with the window.
 ---@param win integer
 function M.forget_window(win)
   state[win] = nil
+  last[win] = nil
 end
 
 return M

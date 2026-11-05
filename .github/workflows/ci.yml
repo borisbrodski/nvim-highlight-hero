@@ -43,4 +43,4 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
-          args: --check lua/nvim-highlight-hero/pattern.lua lua/nvim-highlight-hero/selection.lua lua/nvim-highlight-hero/highlight.lua tests scripts
+          args: --check lua tests scripts
