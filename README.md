@@ -21,7 +21,8 @@ contrast-checked text.
   selection, updating as you move — mirrored into the other windows of the tab
   page (handy for side-by-side diffs and three-way merges; optional).
 - **Merge-friendly matching**: a linewise selection matches every
-  indentation-variant of those lines.
+  indentation-variant of those lines. A characterwise selection across
+  several lines also matches when re-indented or joined onto one line.
 - **Strong / weak matching** — whole-word + smartcase, or substring +
   case-insensitive.
 - **Colour-blind-safe palette** with dark/light variants, 256-colour

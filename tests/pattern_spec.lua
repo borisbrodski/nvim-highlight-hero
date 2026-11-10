@@ -94,8 +94,57 @@ describe("build - auto whitespace", function()
     assert.equals([[\V\c\_^\s\*if (x) {\s\*\_$]], pattern.build("  if (x) {\n", {}))
   end)
 
-  it("multiline => merge", function()
-    assert.equals([[\V\c\_^\s\*a\s\*\n\s\*b\s\*\_$]], pattern.build("a\nb", {}))
+  it("multiline + linewise => merge", function()
+    assert.equals([[\V\c\_^\s\*a\s\*\n\s\*b\s\*\_$]], pattern.build("a\nb", { linewise = true }))
+  end)
+
+  it("multiline, not linewise (characterwise selection) => flex", function()
+    assert.equals([[\V\ca\_s\+b]], pattern.build("a\nb", {}))
+  end)
+end)
+
+describe("build - flex (multi-line span, not line-bound)", function()
+  local function flex(text)
+    return pattern.build(text, { whitespace = "flex", case = "sensitive" })
+  end
+
+  it("a line break between words needs at least one whitespace", function()
+    assert.equals([[\V\Cfoo\_s\+bar]], flex("foo\n    bar"))
+  end)
+
+  it("a line break next to punctuation may vanish", function()
+    assert.equals([[\V\Cfoo(\_s\*a,\_s\*b)]], flex("foo(\n    a,  \n  b)"))
+  end)
+
+  it("ignores edge whitespace and blank lines, escapes backslashes", function()
+    assert.equals([[\V\Ca\\\_s\*b]], flex("  a\\\n\n\t b  "))
+  end)
+
+  it("whitespace-only input falls back to a literal match", function()
+    assert.equals("\\V\\C  \\n ", flex("  \n "))
+  end)
+
+  -- The reported case: a characterwise selection from "Zustaendigkeit" on one
+  -- line to "branche" on the next must match the same text at another
+  -- indentation and also where both parts sit on a single line.
+  it("matches the span at other indentations and joined on one line", function()
+    local pat = pattern.build("Zustaendigkeit zust,\n            Branche branche", {})
+    local function hits(lines)
+      vim.cmd("enew!")
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+      vim.fn.cursor(1, 1)
+      return vim.fn.search(pat, "cnW") > 0
+    end
+    assert.is_true(hits({ "    Zustaendigkeit zust,", "    Branche branche, X x)" }))
+    assert.is_true(hits({ "\t\tZustaendigkeit zust,   ", "", "Branche branche) {" }))
+    assert.is_true(hits({ "  Zustaendigkeit zust, Branche branche, Wirtschaftszweig w)" }))
+    assert.is_false(hits({ "  Zustaendigkeit zust,", "  Wirtschaftszweig w, Branche branche" }))
+  end)
+
+  it("never fuses two words across the line break", function()
+    local re = vim.regex(pattern.build("foo\nbar", {}))
+    assert.is_nil(re:match_str("foobar"))
+    assert.is_not_nil(re:match_str("foo bar"))
   end)
 end)
 
