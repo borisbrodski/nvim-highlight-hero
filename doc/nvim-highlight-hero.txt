@@ -90,7 +90,7 @@ Two presets combine three choices (word-boundaries, case, whitespace):
     strong (|:HH|, digit maps)   whole word, smartcase.
     weak   (|:HH!|)              substring, case-insensitive.
 
-For a visual selection, word boundaries never apply. A linewise or multi-line
+For a visual selection, word boundaries never apply. A linewise (`V`)
 selection uses "merge" whitespace matching: leading indentation and trailing
 whitespace are ignored and each line is anchored, so the selection matches the
 same lines at any indentation. A single-line characterwise selection matches
