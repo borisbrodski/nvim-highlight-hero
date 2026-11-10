@@ -270,4 +270,26 @@ describe("auto-highlight across windows", function()
     assert.equals([[\V\c\<foo\>]], auto_pattern_in(w2))
     vim.cmd("HHauto")
   end)
+
+  it("<leader>hw switches between all windows and the current window live", function()
+    require("nvim-highlight-hero").setup({})
+    local lhs = vim.g.mapleader and "<leader>hw" or "\\hw"
+    assert.is_not.equals("", vim.fn.maparg(lhs, "n"), "the toggle keymap is installed")
+
+    local w1 = vim.api.nvim_get_current_win()
+    vim.cmd("vsplit")
+    local w2 = vim.api.nvim_get_current_win()
+    vim.fn.cursor(1, 1)
+    auto.enable("strong")
+    assert.is_not_nil(auto_pattern_in(w1))
+
+    assert.is_false(auto.toggle_all_windows()) -- off: the other window is cleared at once
+    assert.is_nil(auto_pattern_in(w1))
+    assert.is_not_nil(auto_pattern_in(w2))
+
+    assert.is_true(auto.toggle_all_windows()) -- back on: it lights up again
+    assert.is_not_nil(auto_pattern_in(w1))
+    assert.is_false(auto.toggle_all_windows(false))
+    assert.is_false(auto.all_windows)
+  end)
 end)

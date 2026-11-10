@@ -67,6 +67,7 @@ In Visual mode, `:'<,'>HH` highlights the selection.
 | --- | --- |
 | `<leader>h0` … `<leader>h9` | Toggle the word (normal) or selection (visual) in group 0–9. |
 | `<leader>hh` / `<leader>hH` | Toggle live auto-highlight (strong / weak). |
+| `<leader>hw` | Switch auto-highlight between all windows and the current window only. |
 | `<leader>ho` / `<leader>hO` | Clear the last group / clear all. |
 
 ### Resolving merge conflicts
@@ -99,6 +100,7 @@ require("nvim-highlight-hero").setup({
   keymaps = {
     toggle_auto = "<leader>hh",
     toggle_auto_weak = "<leader>hH",
+    toggle_auto_windows = "<leader>hw",
     off_last = "<leader>ho",
     off_all = "<leader>hO",
   },

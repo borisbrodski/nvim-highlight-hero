@@ -77,6 +77,8 @@ Default maps (all configurable, see |highlight-hero-config|):
                                (visual mode) in group 0-9.
     <leader>hh                 Toggle live auto-highlight (strong).
     <leader>hH                 Toggle live auto-highlight (weak).
+    <leader>hw                 Switch auto-highlight between all windows and
+                               the current window only.
     <leader>ho                 Clear the last group you set.
     <leader>hO                 Clear all groups.
 
@@ -132,6 +134,7 @@ Defaults: >lua
       keymaps = {
         toggle_auto = "<leader>hh",
         toggle_auto_weak = "<leader>hH",
+        toggle_auto_windows = "<leader>hw",
         off_last = "<leader>ho",
         off_all = "<leader>hO",
       },
@@ -155,5 +158,6 @@ Defaults: >lua
     hh.auto_toggle("strong"|"weak")
     hh.auto_enable("strong"|"weak")
     hh.auto_disable()
+    hh.auto_toggle_all_windows([true|false])
 <
  vim:tw=78:ts=8:noet:ft=help:norl:

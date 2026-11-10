@@ -20,7 +20,8 @@ A ground-up rewrite with a test suite and CI.
 
 - Live auto-highlight is mirrored into the other windows of the current tab
   page (floating windows excluded). On by default; turn it off with
-  `setup({ auto = { all_windows = false } })`.
+  `setup({ auto = { all_windows = false } })`, or switch on the fly with
+  `<leader>hw` (`keymaps.toggle_auto_windows`).
 
 ### Fixed
 - `:HH` no longer errors — the command now receives its arguments, count and

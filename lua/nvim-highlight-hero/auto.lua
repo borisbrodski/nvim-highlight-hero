@@ -146,6 +146,19 @@ function M.toggle(preset_name)
   return true
 end
 
+--- Switch the auto-highlight between all windows of the tabpage and the
+--- current window only, applying the change immediately.
+---@param value boolean|nil  explicit state; nil flips the current one
+---@return boolean all_windows
+function M.toggle_all_windows(value)
+  if value == nil then
+    value = not M.all_windows
+  end
+  M.all_windows = value and true or false
+  M.update()
+  return M.all_windows
+end
+
 --- Drop per-window state (e.g. on WinClosed).
 ---@param win integer
 function M.forget_window(win)

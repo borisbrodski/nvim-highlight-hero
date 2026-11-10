@@ -14,6 +14,7 @@ M.defaults = {
   keymaps = {
     toggle_auto = "<leader>hh",
     toggle_auto_weak = "<leader>hH",
+    toggle_auto_windows = "<leader>hw",
     off_last = "<leader>ho",
     off_all = "<leader>hO",
   },
@@ -52,6 +53,12 @@ function M.set_keymaps()
     vim.keymap.set({ "n", "x" }, km.toggle_auto_weak, function()
       auto.toggle("weak")
     end, { silent = true, desc = "Toggle auto-highlight (weak)" })
+  end
+  if km.toggle_auto_windows then
+    vim.keymap.set({ "n", "x" }, km.toggle_auto_windows, function()
+      local all = auto.toggle_all_windows()
+      vim.notify("Highlight Hero: auto-highlight in " .. (all and "all windows" or "current window only"))
+    end, { silent = true, desc = "Toggle auto-highlight in all windows" })
   end
   if km.off_last then
     vim.keymap.set("n", km.off_last, function()
