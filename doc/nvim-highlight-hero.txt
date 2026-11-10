@@ -96,6 +96,14 @@ whitespace are ignored and each line is anchored, so the selection matches the
 same lines at any indentation. A single-line characterwise selection matches
 literally.
 
+A characterwise selection that spans several lines is not tied to line
+boundaries (it may start and end mid-line), so it uses "flex" matching: each
+line break, together with the indentation and trailing whitespace around it,
+matches any run of whitespace. The selection therefore also matches where the
+same text is indented differently or joined onto a single line. Next to
+punctuation the whitespace may be missing entirely (`foo(` + line break + `a`
+also matches `foo(a`); between two words at least one whitespace is required.
+
 ==============================================================================
 7. MERGE CONFLICTS                                     *highlight-hero-merge*
 

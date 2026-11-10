@@ -108,6 +108,43 @@ describe("auto-highlight merge workflow", function()
     assert.is_not_nil(re:match_str("  if (x) {"), "matches the 2-space indent")
     assert.is_not_nil(re:match_str("          if (x) {"), "matches a 10-space indent")
   end)
+
+  -- Regression: a characterwise (v) multi-line selection used the line-anchored
+  -- merge pattern, which cannot match a span that starts or ends mid-line - so
+  -- nothing was highlighted at all, not even the selection itself.
+  it("characterwise multi-line selection ignores indentation and line breaks", function()
+    set_buf({
+      "        Zustaendigkeit zust,",
+      "        Branche branche, String sachgebiet)",
+      "    Zustaendigkeit zust,",
+      "    Branche branche)",
+      "  Zustaendigkeit zust, Branche branche)",
+      "  Zustaendigkeit zust, String sachgebiet)",
+    })
+    auto.enable("strong")
+
+    local captured
+    vim.keymap.set("x", "<F2>", function()
+      auto.update()
+      captured = auto_pattern()
+    end)
+    feed("gg^vj^ee<F2><Esc>") -- from 'Zustaendigkeit' to the end of 'branche'
+    pcall(vim.keymap.del, "x", "<F2>")
+
+    assert.is_not_nil(captured)
+    local found = {}
+    vim.fn.cursor(1, 1)
+    local flags = "cW"
+    while true do
+      local l = vim.fn.search(captured, flags)
+      if l == 0 then
+        break
+      end
+      found[#found + 1] = l
+      flags = "W"
+    end
+    assert.same({ 1, 3, 5 }, found)
+  end)
 end)
 
 describe("auto-highlight via :HHauto and the CursorMoved autocmd", function()

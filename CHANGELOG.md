@@ -24,6 +24,11 @@ A ground-up rewrite with a test suite and CI.
   `<leader>hw` (`keymaps.toggle_auto_windows`).
 
 ### Fixed
+- A characterwise (`v`) selection spanning several lines is highlighted again
+  and now ignores whitespace like a linewise one: the line breaks, with the
+  indentation around them, match any whitespace, so the same text is found at
+  another indentation or joined onto a single line. (It used the line-anchored
+  merge pattern, which cannot match a span that starts or ends mid-line.)
 - `:HH` no longer errors — the command now receives its arguments, count and
   bang (previously it called into Lua with none and indexed a nil value).
 - Smart-space / merge matching no longer drops blank lines or mis-escapes

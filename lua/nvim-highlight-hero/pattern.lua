@@ -8,11 +8,17 @@
 --- Options (all optional):
 ---   boundaries : boolean      wrap a single-line match in \< ... \> (whole word)
 ---   case       : "sensitive" | "insensitive" | "smart"   (default "smart")
----   whitespace : "exact" | "merge" | "auto"              (default "auto")
+---   whitespace : "exact" | "merge" | "flex" | "auto"     (default "auto")
 ---                "merge"  ignores leading indentation and trailing whitespace
 ---                         on every line and tolerates blank lines - used for
----                         comparing lines across a merge conflict.
----                "auto"   = "merge" for linewise/multi-line input, else "exact".
+---                         comparing whole lines across a merge conflict.
+---                "flex"   for a multi-line span that starts and/or ends
+---                         mid-line: every line break (with the indentation
+---                         and trailing whitespace around it) matches any run
+---                         of whitespace, so the span also matches when it is
+---                         indented differently or joined onto one line.
+---                "auto"   = "merge" for linewise input, "flex" for other
+---                         multi-line input, else "exact".
 ---
 --- Presets map the classic strong/weak behaviour onto these flags.
 
@@ -90,6 +96,38 @@ local function build_merge(lines)
   return "\\_^\\s\\*" .. table.concat(parts, "\\s\\*\\n\\s\\*") .. "\\s\\*\\_$"
 end
 
+local function is_word_byte(c)
+  return c:match("[%w_\128-\255]") ~= nil
+end
+
+--- Build the body for whitespace="flex": the span is not tied to line
+--- boundaries (a characterwise selection may start and end mid-line). Each
+--- line break, together with the whitespace around it, becomes "any run of
+--- whitespace, line breaks included". The run is mandatory between two word
+--- characters (so words never fuse) and optional next to punctuation, so
+--- `foo(\n    a` also matches `foo(a`. Whitespace at the very start and end of
+--- the span and blank lines inside it are ignored.
+---@param lines string[]
+---@return string|nil  nil when the span holds nothing but whitespace
+local function build_flex(lines)
+  local cores = {}
+  for _, line in ipairs(lines) do
+    local core = strip(line)
+    if core ~= "" then
+      cores[#cores + 1] = core
+    end
+  end
+  if #cores == 0 then
+    return nil
+  end
+  local body = M.escape_literal(cores[1])
+  for i = 2, #cores do
+    local need_gap = is_word_byte(cores[i - 1]:sub(-1)) and is_word_byte(cores[i]:sub(1, 1))
+    body = body .. (need_gap and "\\_s\\+" or "\\_s\\*") .. M.escape_literal(cores[i])
+  end
+  return body
+end
+
 --- Build the body for whitespace="exact": literal text, newlines as `\n`.
 ---@param lines string[]
 ---@return string
@@ -121,12 +159,14 @@ function M.build(text, opts)
 
   local ws = opts.whitespace or "auto"
   if ws == "auto" then
-    ws = (multiline or linewise) and "merge" or "exact"
+    ws = linewise and "merge" or (multiline and "flex" or "exact")
   end
 
   local body
   if ws == "merge" then
     body = build_merge(lines)
+  elseif ws == "flex" then
+    body = build_flex(lines) or build_exact(lines)
   else
     body = build_exact(lines)
     -- Word boundaries only make sense for a single-line exact match.
