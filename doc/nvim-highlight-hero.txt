@@ -60,7 +60,10 @@ See |highlight-hero-config| for options.
                                                                      *:HHauto*
 :HHauto             Toggle live auto-highlight: continuously highlight the
                     word under the cursor or the current selection, updating
-                    as you move. `:HHauto!` uses weak matching.
+                    as you move. `:HHauto!` uses weak matching. By default
+                    the highlight is mirrored into every other (non-floating)
+                    window of the current tab page; set `auto.all_windows`
+                    to false to keep it to the current window.
 
                                                                    *:HHcolors*
 :HHcolors           Open a preview of the palette for the current background.
@@ -133,6 +136,9 @@ Defaults: >lua
         off_all = "<leader>hO",
       },
       set_default_keymaps = true,      -- false to map everything yourself
+      auto = {
+        all_windows = true,            -- false: current window only
+      },
       -- colors = { [0] = "#E69F00", auto = "#50566B" },
     })
 <

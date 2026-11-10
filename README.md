@@ -18,7 +18,8 @@ contrast-checked text.
 
 - **10 highlight groups** (`0`–`9`) you toggle on and off independently.
 - **Live auto-highlight** of the word under the cursor or the current
-  selection, updating as you move.
+  selection, updating as you move — mirrored into the other windows of the tab
+  page (handy for side-by-side diffs and three-way merges; optional).
 - **Merge-friendly matching**: a linewise selection matches every
   indentation-variant of those lines.
 - **Strong / weak matching** — whole-word + smartcase, or substring +
@@ -102,6 +103,11 @@ require("nvim-highlight-hero").setup({
     off_all = "<leader>hO",
   },
   set_default_keymaps = true,
+  auto = {
+    -- Live auto-highlight also lights up matches in the other windows of the
+    -- current tab page. Set to false to keep it to the current window.
+    all_windows = true,
+  },
   -- Override group background colours (hex). Foreground/cterm are derived.
   -- colors = { [0] = "#E69F00", auto = "#50566B" },
 })

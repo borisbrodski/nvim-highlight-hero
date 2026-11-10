@@ -131,3 +131,143 @@ describe("auto-highlight via :HHauto and the CursorMoved autocmd", function()
     assert.is_nil(auto_pattern())
   end)
 end)
+
+describe("auto-highlight across windows", function()
+  local function auto_pattern_in(win)
+    for _, m in ipairs(vim.fn.getmatches(win)) do
+      if m.group == "NvimHighlightHeroAuto" then
+        return m.pattern
+      end
+    end
+    return nil
+  end
+
+  local function float_win()
+    local buf = vim.api.nvim_create_buf(false, true)
+    return vim.api.nvim_open_win(
+      buf,
+      false,
+      { relative = "editor", row = 1, col = 1, width = 10, height = 2 }
+    )
+  end
+
+  before_each(function()
+    vim.cmd("silent! tabonly!")
+    vim.cmd("silent! only!")
+    set_buf({ "foo bar", "bar foo" })
+    auto.all_windows = true
+  end)
+
+  after_each(function()
+    auto.disable()
+    auto.all_windows = true
+    vim.cmd("silent! tabonly!")
+    vim.cmd("silent! only!")
+  end)
+
+  it("is on by default", function()
+    assert.is_true(require("nvim-highlight-hero.config").defaults.auto.all_windows)
+  end)
+
+  it("mirrors the highlight into the other windows of the tabpage", function()
+    local w1 = vim.api.nvim_get_current_win()
+    vim.cmd("vsplit")
+    local w2 = vim.api.nvim_get_current_win()
+    vim.cmd("new") -- a third window showing a different buffer
+    local w3 = vim.api.nvim_get_current_win()
+    vim.api.nvim_set_current_win(w1)
+
+    auto.enable("strong")
+    vim.fn.cursor(1, 1)
+    auto.update()
+    for _, w in ipairs({ w1, w2, w3 }) do
+      assert.equals([[\V\c\<foo\>]], auto_pattern_in(w))
+    end
+
+    vim.fn.cursor(1, 5) -- on 'bar': every window follows
+    auto.update()
+    for _, w in ipairs({ w1, w2, w3 }) do
+      assert.equals([[\V\c\<bar\>]], auto_pattern_in(w))
+    end
+  end)
+
+  it("clears every window when there is nothing to highlight or auto is turned off", function()
+    local w1 = vim.api.nvim_get_current_win()
+    vim.cmd("vsplit")
+    local w2 = vim.api.nvim_get_current_win()
+    auto.enable("strong")
+    vim.fn.cursor(1, 1)
+    auto.update()
+    assert.is_not_nil(auto_pattern_in(w1))
+
+    vim.fn.cursor(1, 4) -- the space between the words
+    auto.update()
+    assert.is_nil(auto_pattern_in(w1))
+    assert.is_nil(auto_pattern_in(w2))
+
+    vim.fn.cursor(1, 1)
+    auto.update()
+    assert.is_not_nil(auto_pattern_in(w1))
+    auto.disable()
+    assert.is_nil(auto_pattern_in(w1))
+    assert.is_nil(auto_pattern_in(w2))
+  end)
+
+  it("with all_windows = false only the current window is highlighted", function()
+    auto.all_windows = false
+    local w1 = vim.api.nvim_get_current_win()
+    vim.cmd("vsplit")
+    local w2 = vim.api.nvim_get_current_win()
+    auto.enable("strong")
+    vim.fn.cursor(1, 1)
+    auto.update()
+    assert.is_nil(auto_pattern_in(w1))
+    assert.equals([[\V\c\<foo\>]], auto_pattern_in(w2))
+
+    vim.api.nvim_set_current_win(w1) -- the highlight moves with the focus
+    vim.fn.cursor(2, 1)
+    auto.update()
+    assert.equals([[\V\c\<bar\>]], auto_pattern_in(w1))
+    assert.is_nil(auto_pattern_in(w2))
+  end)
+
+  it("leaves floating windows alone", function()
+    local float = float_win()
+    auto.enable("strong")
+    vim.fn.cursor(1, 1)
+    auto.update()
+    assert.is_not_nil(auto_pattern())
+    assert.is_nil(auto_pattern_in(float))
+    vim.api.nvim_win_close(float, true)
+  end)
+
+  it("does not touch windows of other tabpages and follows a tab switch", function()
+    local w1 = vim.api.nvim_get_current_win()
+    auto.enable("strong")
+    vim.fn.cursor(1, 1)
+    auto.update()
+    vim.cmd("tab split")
+    local w2 = vim.api.nvim_get_current_win()
+    vim.fn.cursor(1, 5)
+    auto.update()
+    assert.equals([[\V\c\<bar\>]], auto_pattern_in(w2))
+    assert.is_nil(auto_pattern_in(w1)) -- the hidden tab's stale highlight is dropped
+  end)
+
+  it("setup() applies the option and new splits pick the highlight up", function()
+    local hh = require("nvim-highlight-hero")
+    hh.setup({ auto = { all_windows = false } })
+    assert.is_false(auto.all_windows)
+    hh.setup({})
+    assert.is_true(auto.all_windows)
+
+    vim.fn.cursor(1, 1)
+    vim.cmd("HHauto")
+    local w1 = vim.api.nvim_get_current_win()
+    vim.cmd("vsplit") -- WinNew/WinEnter autocmds sync the new window
+    local w2 = vim.api.nvim_get_current_win()
+    assert.equals([[\V\c\<foo\>]], auto_pattern_in(w1))
+    assert.equals([[\V\c\<foo\>]], auto_pattern_in(w2))
+    vim.cmd("HHauto")
+  end)
+end)

@@ -18,6 +18,10 @@ A ground-up rewrite with a test suite and CI.
 - Test suite (plenary/busted) and GitHub Actions CI (Neovim stable + nightly,
   luacheck, stylua).
 
+- Live auto-highlight is mirrored into the other windows of the current tab
+  page (floating windows excluded). On by default; turn it off with
+  `setup({ auto = { all_windows = false } })`.
+
 ### Fixed
 - `:HH` no longer errors — the command now receives its arguments, count and
   bang (previously it called into Lua with none and indexed a nil value).

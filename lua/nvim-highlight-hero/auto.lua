@@ -5,6 +5,10 @@
 --- conflict lights up every indentation-variant of them - the headline merge
 --- workflow. Uses the dedicated NvimHighlightHeroAuto group, independent of the
 --- numbered groups, and is tracked per window.
+---
+--- With `all_windows` (the default) the highlight is mirrored into every normal
+--- window of the current tabpage, so the word or lines you are on light up in
+--- the other splits too - e.g. across the panes of a three-way merge.
 
 local pattern = require("nvim-highlight-hero.pattern")
 local selection = require("nvim-highlight-hero.selection")
@@ -15,6 +19,8 @@ local M = {}
 M.enabled = false
 M.preset = "strong"
 M.priority = 9
+--- Mirror the auto-highlight into the other windows of the current tabpage.
+M.all_windows = true
 
 local match = {} -- winid -> match id
 local last = {} -- winid -> last applied pattern
@@ -58,24 +64,50 @@ local function current_pattern()
   return nil
 end
 
---- Recompute and apply the auto-highlight for the current window. Cheap no-op
---- when disabled, so it is safe to call from CursorMoved/ModeChanged.
+--- The windows the auto-highlight should currently be shown in, as a set.
+--- Always the current window; with `all_windows` also every other normal
+--- (non-floating) window of the current tabpage.
+---@return table<integer, boolean>
+local function target_windows()
+  local cur = vim.api.nvim_get_current_win()
+  local set = { [cur] = true }
+  if M.all_windows then
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+      if vim.api.nvim_win_get_config(win).relative == "" then
+        set[win] = true
+      end
+    end
+  end
+  return set
+end
+
+--- Recompute and apply the auto-highlight. The pattern comes from the current
+--- window (word under the cursor / visual selection) and is shown in every
+--- target window; windows that are no longer a target are cleared. Cheap no-op
+--- when disabled, and skips windows already showing the pattern, so it is safe
+--- to call from CursorMoved/ModeChanged.
 function M.update()
   if not M.enabled then
     return
   end
-  local win = vim.api.nvim_get_current_win()
   local pat = current_pattern()
   if not pat then
-    clear_win(win)
+    M.clear_all()
     return
   end
-  if last[win] == pat then
-    return
+  local targets = target_windows()
+  for win in pairs(match) do
+    if not targets[win] then
+      clear_win(win)
+    end
   end
-  clear_win(win)
-  match[win] = vim.fn.matchadd(colors.auto_group, pat, M.priority, -1, { window = win })
-  last[win] = pat
+  for win in pairs(targets) do
+    if last[win] ~= pat then
+      clear_win(win)
+      match[win] = vim.fn.matchadd(colors.auto_group, pat, M.priority, -1, { window = win })
+      last[win] = pat
+    end
+  end
 end
 
 --- Remove the auto-highlight from every window.
