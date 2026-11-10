@@ -14,11 +14,17 @@ M.defaults = {
   keymaps = {
     toggle_auto = "<leader>hh",
     toggle_auto_weak = "<leader>hH",
+    toggle_auto_windows = "<leader>hw",
     off_last = "<leader>ho",
     off_all = "<leader>hO",
   },
   -- Set the default keymaps (digits + auto + off). Turn off to map it yourself.
   set_default_keymaps = true,
+  auto = {
+    -- Live auto-highlight also lights up matches in the other windows of the
+    -- current tabpage. Set to false to keep it to the current window.
+    all_windows = true,
+  },
 }
 
 M.opts = vim.deepcopy(M.defaults)
@@ -47,6 +53,12 @@ function M.set_keymaps()
     vim.keymap.set({ "n", "x" }, km.toggle_auto_weak, function()
       auto.toggle("weak")
     end, { silent = true, desc = "Toggle auto-highlight (weak)" })
+  end
+  if km.toggle_auto_windows then
+    vim.keymap.set({ "n", "x" }, km.toggle_auto_windows, function()
+      local all = auto.toggle_all_windows()
+      vim.notify("Highlight Hero: auto-highlight in " .. (all and "all windows" or "current window only"))
+    end, { silent = true, desc = "Toggle auto-highlight in all windows" })
   end
   if km.off_last then
     vim.keymap.set("n", km.off_last, function()
@@ -83,13 +95,18 @@ function M.create_autocmds()
 
   -- Live auto-highlight: recompute on cursor movement and mode changes. The
   -- callback is a cheap no-op while auto-highlight is disabled.
-  vim.api.nvim_create_autocmd({ "CursorMoved", "ModeChanged" }, {
-    group = grp,
-    pattern = "*",
-    callback = function()
-      auto.update()
-    end,
-  })
+  -- Window/tab/buffer events keep the other windows in sync (new splits, a
+  -- different buffer shown in a window, switching tabpages).
+  vim.api.nvim_create_autocmd(
+    { "CursorMoved", "ModeChanged", "WinEnter", "WinNew", "TabEnter", "BufWinEnter" },
+    {
+      group = grp,
+      pattern = "*",
+      callback = function()
+        auto.update()
+      end,
+    }
+  )
 
   vim.api.nvim_create_autocmd("WinClosed", {
     group = grp,
@@ -121,6 +138,10 @@ end
 function M.setup(user_opts)
   M.opts = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), user_opts or {})
   colors.apply(M.opts.colors)
+  auto.all_windows = (M.opts.auto or {}).all_windows ~= false
+  if auto.enabled then
+    auto.update()
+  end
   if M.opts.set_default_keymaps then
     M.set_keymaps()
   end

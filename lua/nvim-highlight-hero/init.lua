@@ -26,6 +26,7 @@ M.off_last = engine.off_last
 M.auto_toggle = auto.toggle
 M.auto_enable = auto.enable
 M.auto_disable = auto.disable
+M.auto_toggle_all_windows = auto.toggle_all_windows
 
 -- Command backends (also referenced by the :HH / :HHoff user commands).
 M.cmd_hh = engine.cmd_hh
