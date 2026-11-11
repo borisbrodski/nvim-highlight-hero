@@ -38,6 +38,12 @@ A ground-up rewrite with a test suite and CI.
 - Multibyte and blockwise selections are read correctly.
 
 ### Changed
+- Live auto-highlight is debounced: it follows the cursor once it has rested
+  for `auto.debounce` ms (default 50) instead of on every cursor move. Updating
+  the highlight redraws every window showing it, which made cursor movement
+  3x (one window) to 4.5x (three windows) more expensive than without
+  auto-highlight. `setup({ auto = { debounce = 0 } })` restores the old
+  behaviour.
 - `setup()` is now required; commands, keymaps and highlight groups are
   created there (not at plugin load).
 - Group `0` is available again (digit-suffixed maps avoid the bare `0` key).

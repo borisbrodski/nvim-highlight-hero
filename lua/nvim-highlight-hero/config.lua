@@ -24,6 +24,10 @@ M.defaults = {
     -- Live auto-highlight also lights up matches in the other windows of the
     -- current tabpage. Set to false to keep it to the current window.
     all_windows = true,
+    -- Milliseconds the cursor has to rest before the highlight follows it.
+    -- Updating it redraws the windows, so this keeps fast cursor movement
+    -- (held-down j/k, w, ...) cheap. 0 = update on every cursor move.
+    debounce = 50,
   },
 }
 
@@ -93,20 +97,27 @@ end
 function M.create_autocmds()
   local grp = vim.api.nvim_create_augroup("NvimHighlightHero", { clear = true })
 
-  -- Live auto-highlight: recompute on cursor movement and mode changes. The
+  -- Live auto-highlight follows the cursor and the selection. These fire on
+  -- every key, so the update is debounced (see auto.request_update); the
   -- callback is a cheap no-op while auto-highlight is disabled.
+  vim.api.nvim_create_autocmd({ "CursorMoved", "ModeChanged" }, {
+    group = grp,
+    pattern = "*",
+    callback = function()
+      auto.request_update()
+    end,
+  })
+
   -- Window/tab/buffer events keep the other windows in sync (new splits, a
-  -- different buffer shown in a window, switching tabpages).
-  vim.api.nvim_create_autocmd(
-    { "CursorMoved", "ModeChanged", "WinEnter", "WinNew", "TabEnter", "BufWinEnter" },
-    {
-      group = grp,
-      pattern = "*",
-      callback = function()
-        auto.update()
-      end,
-    }
-  )
+  -- different buffer shown in a window, switching tabpages). Rare, so applied
+  -- immediately.
+  vim.api.nvim_create_autocmd({ "WinEnter", "WinNew", "TabEnter", "BufWinEnter" }, {
+    group = grp,
+    pattern = "*",
+    callback = function()
+      auto.update()
+    end,
+  })
 
   vim.api.nvim_create_autocmd("WinClosed", {
     group = grp,
@@ -139,6 +150,7 @@ function M.setup(user_opts)
   M.opts = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), user_opts or {})
   colors.apply(M.opts.colors)
   auto.all_windows = (M.opts.auto or {}).all_windows ~= false
+  auto.debounce = tonumber((M.opts.auto or {}).debounce) or 0
   if auto.enabled then
     auto.update()
   end
