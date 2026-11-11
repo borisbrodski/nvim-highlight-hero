@@ -21,6 +21,9 @@ M.preset = "strong"
 M.priority = 9
 --- Mirror the auto-highlight into the other windows of the current tabpage.
 M.all_windows = true
+--- Milliseconds the cursor has to rest before the highlight follows it (see
+--- M.request_update). 0 updates on every cursor move.
+M.debounce = 50
 
 local match = {} -- winid -> match id
 local last = {} -- winid -> last applied pattern
@@ -110,6 +113,38 @@ function M.update()
   end
 end
 
+local timer -- shared debounce timer, created on first use
+local scheduled_update = vim.schedule_wrap(function()
+  M.update()
+end)
+
+--- Ask for an update "soon": what the CursorMoved / ModeChanged autocmds call.
+---
+--- Changing the highlight redraws every window that shows it, so doing that
+--- on each cursor move makes moving through a file noticeably more expensive
+--- (several times the cost of the move itself, more with splits). Instead the
+--- update is debounced: it runs once the cursor has rested for `M.debounce`
+--- ms. While keys repeat the previous highlight simply stays, and moving
+--- within the same word never did any work to begin with.
+function M.request_update()
+  if not M.enabled then
+    return
+  end
+  if (M.debounce or 0) <= 0 then
+    M.update()
+    return
+  end
+  timer = timer or vim.uv.new_timer()
+  timer:stop()
+  timer:start(M.debounce, 0, scheduled_update)
+end
+
+local function cancel_pending()
+  if timer then
+    timer:stop()
+  end
+end
+
 --- Remove the auto-highlight from every window.
 function M.clear_all()
   for win in pairs(match) do
@@ -127,6 +162,7 @@ end
 
 function M.disable()
   M.enabled = false
+  cancel_pending()
   M.clear_all()
 end
 

@@ -110,6 +110,9 @@ require("nvim-highlight-hero").setup({
     -- Live auto-highlight also lights up matches in the other windows of the
     -- current tab page. Set to false to keep it to the current window.
     all_windows = true,
+    -- Milliseconds the cursor has to rest before the highlight follows it.
+    -- Keeps fast cursor movement cheap. 0 = update on every cursor move.
+    debounce = 50,
   },
   -- Override group background colours (hex). Foreground/cterm are derived.
   -- colors = { [0] = "#E69F00", auto = "#50566B" },

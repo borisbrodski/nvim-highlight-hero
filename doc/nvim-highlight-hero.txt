@@ -64,6 +64,10 @@ See |highlight-hero-config| for options.
                     the highlight is mirrored into every other (non-floating)
                     window of the current tab page; set `auto.all_windows`
                     to false to keep it to the current window.
+                    The highlight follows the cursor once it has rested for
+                    `auto.debounce` milliseconds (default 50), so holding
+                    down a movement key does not redraw the windows on
+                    every step. Set it to 0 to update on every move.
 
                                                                    *:HHcolors*
 :HHcolors           Open a preview of the palette for the current background.
@@ -149,6 +153,7 @@ Defaults: >lua
       set_default_keymaps = true,      -- false to map everything yourself
       auto = {
         all_windows = true,            -- false: current window only
+        debounce = 50,                 -- ms the cursor must rest; 0 = off
       },
       -- colors = { [0] = "#E69F00", auto = "#50566B" },
     })

@@ -148,23 +148,81 @@ describe("auto-highlight merge workflow", function()
 end)
 
 describe("auto-highlight via :HHauto and the CursorMoved autocmd", function()
-  require("nvim-highlight-hero").setup({})
+  local hh = require("nvim-highlight-hero")
 
-  it("enables live and refreshes on CursorMoved", function()
+  local function fresh(lines)
     vim.cmd("enew!")
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "alpha beta", "beta alpha" })
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
     vim.fn.clearmatches()
     auto.disable()
+  end
 
+  local function move(row, col)
+    vim.fn.cursor(row, col)
+    vim.api.nvim_exec_autocmds("CursorMoved", {})
+  end
+
+  after_each(function()
+    auto.disable()
+    hh.setup({})
+  end)
+
+  it("debounces by default", function()
+    hh.setup({})
+    assert.equals(50, require("nvim-highlight-hero.config").defaults.auto.debounce)
+    assert.equals(50, auto.debounce)
+  end)
+
+  it("with debounce = 0 the highlight follows every cursor move at once", function()
+    hh.setup({ auto = { debounce = 0 } })
+    fresh({ "alpha beta", "beta alpha" })
     vim.fn.cursor(1, 1)
     vim.cmd("HHauto") -- enable; highlights 'alpha'
     assert.equals([[\V\c\<alpha\>]], auto_pattern())
 
-    vim.fn.cursor(1, 7) -- on 'beta'
-    vim.api.nvim_exec_autocmds("CursorMoved", {})
+    move(1, 7) -- on 'beta'
     assert.equals([[\V\c\<beta\>]], auto_pattern())
 
-    vim.cmd("HHauto") -- disable (cleanup)
+    vim.cmd("HHauto") -- disable
+    assert.is_nil(auto_pattern())
+  end)
+
+  it("debounced: a burst of cursor moves costs one update, after the cursor rests", function()
+    hh.setup({ auto = { debounce = 30 } })
+    fresh({ "alpha beta gamma delta", "beta alpha" })
+    vim.fn.cursor(1, 1)
+    vim.cmd("HHauto") -- enabling applies immediately
+    assert.equals([[\V\c\<alpha\>]], auto_pattern())
+
+    local updates = 0
+    local orig = auto.update
+    auto.update = function(...)
+      updates = updates + 1
+      return orig(...)
+    end
+
+    move(1, 7) -- beta
+    move(1, 12) -- gamma
+    move(1, 18) -- delta
+    assert.equals(0, updates, "nothing is recomputed while the cursor keeps moving")
+    assert.equals([[\V\c\<alpha\>]], auto_pattern(), "the previous highlight stays meanwhile")
+
+    vim.wait(300, function()
+      return updates > 0
+    end, 5)
+    auto.update = orig
+    assert.equals(1, updates, "the whole burst is one update")
+    assert.equals([[\V\c\<delta\>]], auto_pattern())
+  end)
+
+  it("turning auto-highlight off cancels a pending update", function()
+    hh.setup({ auto = { debounce = 30 } })
+    fresh({ "alpha beta" })
+    vim.fn.cursor(1, 1)
+    vim.cmd("HHauto")
+    move(1, 7)
+    vim.cmd("HHauto") -- off while the update is still pending
+    vim.wait(120)
     assert.is_nil(auto_pattern())
   end)
 end)
