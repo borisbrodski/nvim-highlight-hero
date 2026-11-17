@@ -14,6 +14,8 @@ contrast-checked text.
 
 > Neovim port of [vim-highlight-hero](https://github.com/borisbrodski/vim-highlight-hero).
 
+![Highlighting several variables at once, each in its own colour](assets/demo-groups.gif)
+
 ## Features
 
 - **10 highlight groups** (`0`–`9`) you toggle on and off independently.
@@ -73,22 +75,21 @@ In Visual mode, `:'<,'>HH` highlights the selection.
 
 ### Resolving merge conflicts
 
-Given a conflict where the same line appears at different indentations:
+A conflict often shows the same block three times at different indentations,
+and the question is what actually changed. Turn on auto-highlight
+(`<leader>hh`) and let the highlight answer it:
 
-```
-<<<<<<< ours
-  if (condition) {
-||||||| base
-    if (condition) {
-=======
-  if (condition) {
->>>>>>> theirs
-```
+![Finding a one-letter change in a merge conflict](assets/demo-merge.gif)
 
-Turn on auto-highlight (`<leader>hh`), then linewise-select one `if (condition)`
-line with `V`. Every indentation-variant of that line lights up, so you can see
-at a glance that only the indentation differs. Where a line's highlight does
-*not* appear on another branch, that line really changed.
+1. **Which line?** Select the first line of a block with `V`. Every
+   indentation-variant of it lights up in the other blocks. Extend the
+   selection line by line with `j`: as long as a block keeps its highlight, it
+   is identical so far. The moment a block's highlight disappears, the line
+   you just added is the one that differs there.
+2. **Which character?** Go to that line and select from its first character
+   with `v`, then extend with `l` (or `e`, `f`, ...). The other blocks stay
+   highlighted while they match; where one drops out, the character under the
+   cursor is the change.
 
 ## Configuration
 
