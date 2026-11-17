@@ -98,6 +98,20 @@ describe("build - auto whitespace", function()
     assert.equals([[\V\c\_^\s\*a\s\*\n\s\*b\s\*\_$]], pattern.build("a\nb", { linewise = true }))
   end)
 
+  -- A characterwise selection that ends on an empty line ends in "\n" too. It
+  -- must not be mistaken for a linewise one (line anchors never match a span
+  -- that starts mid-line).
+  it("trailing newline with linewise = false stays characterwise", function()
+    assert.equals([[\V\ca = b]], pattern.build("a = b\n", { linewise = false }))
+    assert.equals([[\V\ca = b\_s\+if (c]], pattern.build("a = b\n\n    if (c", { linewise = false }))
+    assert.equals([[\V\ca = b\_s\+if (c) {]], pattern.build("a = b\n\n    if (c) {\n", { linewise = false }))
+    assert.equals(
+      [[\V\cval a]],
+      pattern.build("    val a\n", { linewise = false }),
+      "indentation is ignored as in the next step"
+    )
+  end)
+
   it("multiline, not linewise (characterwise selection) => flex", function()
     assert.equals([[\V\ca\_s\+b]], pattern.build("a\nb", {}))
   end)

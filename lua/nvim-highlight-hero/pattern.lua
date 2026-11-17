@@ -146,10 +146,14 @@ end
 function M.build(text, opts)
   opts = opts or {}
 
-  -- A single trailing newline is a selection artifact (linewise yanks include
-  -- it); it marks the input as linewise but is not a blank line to match.
+  -- A single trailing newline is how a linewise yank / selection arrives; it
+  -- marks the input as linewise and is not a blank line to match. That guess
+  -- only applies when the caller did not say: a characterwise selection that
+  -- ends on an empty line also ends in a newline, and treating it as linewise
+  -- would anchor it to whole lines - which a span starting mid-line can never
+  -- match, so its highlight vanished whenever the cursor crossed a blank line.
   local linewise = opts.linewise
-  if text:sub(-1) == "\n" then
+  if text:sub(-1) == "\n" and linewise ~= false then
     linewise = true
     text = text:sub(1, -2)
   end
