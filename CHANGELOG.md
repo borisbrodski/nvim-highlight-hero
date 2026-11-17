@@ -24,6 +24,10 @@ A ground-up rewrite with a test suite and CI.
   `<leader>hw` (`keymaps.toggle_auto_windows`).
 
 ### Fixed
+- A characterwise (`v`) selection no longer loses its highlight while it is
+  extended across blank lines. With the cursor on an empty line the selected
+  text ends in a newline and was mistaken for a linewise selection, so the
+  highlight vanished (or jumped to whole lines) on every blank line.
 - A characterwise (`v`) selection spanning several lines is highlighted again
   and now ignores whitespace like a linewise one: the line breaks, with the
   indentation around them, match any whitespace, so the same text is found at

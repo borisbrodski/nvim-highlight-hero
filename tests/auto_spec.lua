@@ -145,6 +145,66 @@ describe("auto-highlight merge workflow", function()
     end
     assert.same({ 1, 3, 5 }, found)
   end)
+
+  -- Regression: extending a characterwise selection over blank lines. With the
+  -- cursor on an empty line the selection text ends in a newline and was taken
+  -- for a linewise one, so the highlight disappeared (or jumped to whole
+  -- lines) on every blank line and came back on the next.
+  it("characterwise selection keeps matching while it crosses blank lines", function()
+    set_buf({
+      "    val a = compute(x)",
+      "",
+      "    if (a > limit) {",
+      "",
+      "        report(a, limit)",
+      "---",
+      "  val a = compute(x)",
+      "  ",
+      "  if (a > limit) {",
+      "",
+      "      report(a, limit)",
+    })
+    auto.enable("strong")
+
+    local function match_starts(pat)
+      local found = {}
+      local view = vim.fn.winsaveview()
+      vim.fn.cursor(1, 1)
+      local flags = "cW"
+      while true do
+        local pos = vim.fn.searchpos(pat, flags)
+        if pos[1] == 0 then
+          break
+        end
+        found[#found + 1] = pos[1] .. ":" .. pos[2]
+        flags = "W"
+      end
+      vim.fn.winrestview(view)
+      return found
+    end
+
+    local seen = {}
+    vim.keymap.set("x", "<F2>", function()
+      auto.update()
+      seen[#seen + 1] = match_starts(auto_pattern())
+    end)
+    -- from the 'a' of the first line (mid-line), down one line at a time
+    feed("gg^wv<F2>j<F2>j<F2>j<F2>j<F2><Esc>")
+    -- from column 1 (inside the indentation), down one line at a time
+    feed("gg0vj<F2>j<F2>j<F2>j<F2><Esc>")
+    pcall(vim.keymap.del, "x", "<F2>")
+
+    assert.equals(9, #seen)
+    table.remove(seen, 1) -- the single letter 'a' alone matches all over the place
+    for step, found in ipairs(seen) do
+      local mid_line = step <= 4
+      assert.same(
+        mid_line and { "1:9", "7:7" } or { "1:5", "7:3" },
+        found,
+        "step " .. step .. ": both copies match, starting at the selected text"
+      )
+    end
+  end)
 end)
 
 describe("auto-highlight via :HHauto and the CursorMoved autocmd", function()
