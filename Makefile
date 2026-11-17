@@ -5,7 +5,7 @@ PLENARY_DIR ?= .tests/plenary.nvim
 # rewritten during the redesign.
 LINT_FILES = lua tests scripts
 
-.PHONY: test lint format format-check deps clean
+.PHONY: test lint format format-check deps clean demo
 
 deps:
 	@test -d $(PLENARY_DIR) || git clone --depth 1 https://github.com/nvim-lua/plenary.nvim $(PLENARY_DIR)
@@ -25,3 +25,8 @@ format:
 
 clean:
 	rm -rf .tests
+
+# Re-record the README demo GIFs into assets/ (needs python3 with pynvim and
+# pillow; see scripts/demo/record.py).
+demo:
+	python3 scripts/demo/record.py
